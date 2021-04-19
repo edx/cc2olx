@@ -6,10 +6,15 @@ from pathlib import Path
 import requests
 from requests.auth import AuthBase
 
-OAUTH_TOKEN_URL = "https://courses.edx.org/oauth2/access_token"
-GENERATE_UPLOAD_LINK_BASE_URL = "https://studio.edx.org/generate_video_upload_link/"
-# OAUTH_TOKEN_URL = "https://courses.stage.edx.org/oauth2/access_token"
-# GENERATE_UPLOAD_LINK_BASE_URL = "https://studio.stage.edx.org/generate_video_upload_link/"
+EDX_LMS = "https://courses.edx.org"
+EDX_STUDIO = "https://studio.edx.org"
+# EDX_LMS = "https://courses.stage.edx.org"
+# EDX_STUDIO = "https://studio.stage.edx.org"
+
+OAUTH_TOKEN_URL = f"{EDX_LMS}/oauth2/access_token"
+GENERATE_UPLOAD_LINK_BASE_URL = f"{EDX_STUDIO}/generate_video_upload_link/"
+TRANSCRIPT_UPLOAD_LINK = f"{EDX_STUDIO}/transcript_upload/"
+
 VIDEO_EXTENSION_CONTENT_TYPES = {
     ".mp4": "video/mp4",
     ".mov": "video/quicktime",
@@ -121,6 +126,32 @@ def make_generate_upload_link_request(url, data, filename, access_token):
         )
 
     return response
+
+
+def upload_transcript(filename, edx_video_id, language_code):
+    """
+    Make a POST request against the Studio upload transcript API and return the
+    response. If errors occur during the API call, log to the console.
+
+    Arguments:
+        * filename: the transcript filename
+        * edx_video_id: the video ID of the video this transcript is for
+        * language_code: the language of the transcript
+
+    Returns:
+        * response: the response object from the POST API call
+    """
+    data = {"edx_video_id": edx_video_id, "language_code": language_code, "new_language_code": language_code}
+    files = {"file": open(filename, "rb")}
+
+    try:
+        response = requests.post(TRANSCRIPT_UPLOAD_LINK, data=data, files=files)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as error:
+        print(
+            "An HTTP error occurred calling the Studio transcript upload link API "
+            "for transcript: {}: {}".format(filename, repr(error))
+        )
 
 
 def make_upload_video_request(url, data, headers, filename):
@@ -260,6 +291,13 @@ def main():
                         make_upload_video_request(upload_url, data, headers, filename)
 
                 files_data[str(relative_path)] = {"edx_video_id": edx_video_id}
+
+                # upload the corresponding transcript file
+                # TODO: do a proper search for all languages
+                srt_path = full_path.with_suffix(".en.srt")
+                lang = "en"
+                if srt_path.is_file():
+                    upload_transcript(srt_path, edx_video_id, lang)
 
     input_csv_path = Path(args.input_csv)
 
