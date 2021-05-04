@@ -282,6 +282,7 @@ class QtiExport:
                 ])
             ],
             {
+                'url_name': problem_data['ident'],
                 'text_response': 'required',
                 'prompts_type': 'html'
             }
@@ -324,12 +325,12 @@ class QtiParser:
 
         parsed_problems = []
 
-        for problem in problems:
+        for i, problem in enumerate(problems):
             data = {}
 
             attributes = problem.attrib
 
-            data["ident"] = attributes["ident"]
+            data["ident"] = attributes["ident"] + str(i)
             data["title"] = attributes["title"]
 
             cc_profile = self._parse_problem_profile(problem)
